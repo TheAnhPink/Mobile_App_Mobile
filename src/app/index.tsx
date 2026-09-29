@@ -1,98 +1,111 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import MovieCard from '@/components/MovieCard';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+type Movie = {
+  id: string;
+  title: string;
+  rating: number;
+  isShowing: boolean;
+  genre: string;
+  year: number;
+  poster: string;
+};
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+function index() {
+  const [movies, setMovie] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isTile, setIsTile] = useState(false);
+
+  const numColumns = isTile ? 2 : 1;
+
+  const fetchMovies = async () => {
+    try {
+      const resp = await fetch(
+        'https://6abb550db2118ed7abb84013.mockapi.io/movies'
+      );
+
+      const data = await resp.json();
+      setMovie(data);
+    } catch (err) {
+      Alert.alert('Lỗi', 'Lỗi fetch');
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchMovies();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    const loadMovies = async () => {
+      setLoading(true);
+      await fetchMovies();
+      setLoading(false);
+    };
+
+    loadMovies();
+  }, []);
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <SafeAreaProvider>
+      <SafeAreaView>
+        <View>
+          <Text>Movie App</Text>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+          <Text>Dạng lưới</Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+          <Switch
+            value={isTile}
+            onValueChange={setIsTile}
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
+        <View>
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <FlatList
+              key={String(numColumns)}
+              data={movies}
+              numColumns={numColumns}
+              keyExtractor={(item) => item.id}
+              columnWrapperStyle={isTile ? { gap: 10 } : undefined}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                />
+              }
+              renderItem={({ item }) => (
+                <MovieCard
+                  movie={item}
+                  layout={isTile ? 'tile' : 'row'}
+                  onSelect={(id) => {
+                    Alert.alert('Tên phim', item.title);
+                  }}
+                />
+              )}
+            />
+          )}
+        </View>
       </SafeAreaView>
-    </ThemedView>
+    </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
+export default index;
